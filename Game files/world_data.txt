@@ -1,0 +1,13 @@
+[general]
+mods=1
+name=Baba Is Learn
+start=106level
+firstlevel=0level
+themecount=27
+author=...
+prize_max=225
+clear_max=12
+bonus_max=3
+[levels]
+levelid=341
+rolling_levelid=12
