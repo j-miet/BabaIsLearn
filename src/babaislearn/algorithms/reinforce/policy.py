@@ -1,9 +1,8 @@
 from torch import nn
 
 class Policy(nn.Module):
-    def __init__(self):
+    def __init__(self, action_count: int):
         super(Policy, self).__init__()
-        action_count = 6
         self.layers = nn.Sequential(
             nn.Linear(594, 594),
             nn.ReLU(),

@@ -30,7 +30,7 @@ class Reinforce:
                 gamma: float=0.99,
                 episodes: int=200,
                 steps: int=200,
-                step_reward: int | float=-1,
+                step_reward: int | float=0,
                 failed_reward: int | float=0,
                 success_reward: int | float=1,
                 score: int | float=0,
@@ -59,32 +59,33 @@ class Reinforce:
         self.value_file = value_file
         self.summary_folder = summary_folder
 
+        self._undo_penalty = 0 # penalty (= negative reward) after selecting 'undo' action
         self._input_delay = 0.02 # must be a small value, but not too small or pynput cannot register basic inputs
         self._input_delay2 = 1.5
         self._game_status = 0
         self._win_counter = 0
         self._episode_loss = 0
 
-        self.policy = Policy().to(self.device)
+        self.policy = Policy(action_count=4).to(self.device)
         self.optimizer = optim.AdamW(self.policy.parameters(), lr=self.policy_lr)
         if self.baseline_enabled:
             self.value_net = ValueNet().to(self.device)
             self.value_optimizer = optim.AdamW(self.value_net.parameters(), lr=self.value_lr)
 
         # visualization with matplotlib
+        self._scores = []
         _, self.axs = plt.subplots(2, figsize=(7,6))
         plt.subplots_adjust(hspace=0.5)
-        self.action_names = ["Up", "Down", "Left", "Right", "Wait", "Undo"]
-        self.labels = [0,0,0,0,0,0]
-        self.rewards = []
-        self.axs[0].set_ybound(-500,20) # adjust this based on total rewards range
+        self.action_names = ["Up", "Down", "Left", "Right"] # "Wait" & "Undo" are unused
+        self.labels = [0 for _ in range(len(self.action_names))]
+        self.axs[0].set_ybound(0,2) # adjust this based on total rewards range
         self.axs[0].set_title('Episode rewards')
         self.axs[0].set_ylabel('Reward')
         self.axs[0].set_xlabel('Episode')
         self.axs[0].xaxis.set_major_locator(MaxNLocator(integer=True))
         self.bar = self.axs[1].bar(self.action_names, self.labels, width=0.3)
         self.axs[1].set_ybound(0,1)
-        self.axs[1].set_yticks([0,0.2,0.4,0.6,0.8,1])
+        self.axs[1].set_yticks([0.2*y for y in range(0,len(self.action_names))])
         self.axs[1].set_title('Action probabilities')
         self.axs[1].set_ylabel('Probability')
         plt.ion()
@@ -164,7 +165,7 @@ class Reinforce:
         reward = 0
         if state_val[1] == 1:
             if action == 5: # penaltize 'undo' action
-                reward = 2*self.step_reward
+                reward = self._undo_penalty
             else:
                 reward = self.step_reward
         elif state_val[1] == 2:
@@ -200,7 +201,6 @@ class Reinforce:
             r = reward + self.gamma*r
             returns_list.insert(0, r)
         returns = torch.tensor(returns_list)
-        self.rewards.append(returns[0].item())
 
         if self.baseline_enabled:
             for val in self.value_net.values[::-1]:
@@ -215,7 +215,7 @@ class Reinforce:
         log_probs = torch.cat(self.policy.log_probs).to(self.device)
         entropy_loss = -torch.mean(torch.tensor(self.policy.entropies))
         policy_loss = -torch.mean(log_probs * advantages)
-        policy_loss += 0.001 * entropy_loss 
+        policy_loss = policy_loss + 0.001 * entropy_loss 
         self._episode_loss = policy_loss.item()
 
         # train value network
@@ -247,14 +247,14 @@ class Reinforce:
 
         if os.path.isfile(Path(__file__).parent/f"{self.policy_file}"):
             self.policy.load_state_dict(torch.load(self.models_path/f"{self.policy_file}", weights_only=True))
-            print(f"Loaded existing policy model.")
+            print("Loaded existing policy model.")
         else:
             print("No existing policy network found.")
         if self.baseline_enabled:
             if os.path.isfile(Path(__file__).parent/f"{self.value_file}"):
                 self.value_net.load_state_dict(torch.load(self.models_path/f"{self.value_file}", 
                                                     weights_only=True))
-                print(f"Loaded existing value model.")
+                print("Loaded existing value model.")
             else:
                 print("No existing value network found.")
         Hotkey.press_space()
@@ -263,6 +263,7 @@ class Reinforce:
         time.sleep(self._input_delay2)
         print("Starting a new step training loop...")
         start_time = time.time()
+
         for e in range(1, self.episodes+1):
             if Hotkey.stopped:
                 print("Learning process halted.")
@@ -315,22 +316,22 @@ class Reinforce:
                 global_step += 1
                 step += 1
             
-            # train model and update rewards graph
+            # train model, update rewards graph and print statistics
+            self._scores.append(score)
             self._train()
-            self.axs[0].plot(range(1,e+1), self.rewards)
+            self.axs[0].plot(range(1,e+1), self._scores)
             plt.pause(0.001)
 
             print(
-                f'Episode {e} -> reward: {self.rewards[e-1]} | global step: {global_step} '
+                f'Episode {e} -> reward: {score} | global step: {global_step} '
                 f'/// wins: {self._win_counter}, time total: {datetime.timedelta(seconds=int(time.time()-start_time))}'
             )
-
-            writer.add_scalar('Reward', self.rewards[e-1], e)
+            writer.add_scalar('Reward', score, e)
             writer.add_scalar('Step', step, e)
             self._episode_loss = 0
             self.policy.actions.clear()
-
-        self.rewards.clear()
+            
+        self._scores.clear()
         if self._game_status == -1:
             print("Any updates to policy network were not saved.")
             return
