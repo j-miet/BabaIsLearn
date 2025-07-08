@@ -26,10 +26,6 @@ def run() -> None:
         match input_str:
             case '1':
                 model = Reinforce(game=babagame,
-                                  policy_lr=0.0001, 
-                                  step_reward=-1, 
-                                  failed_reward=-1, 
-                                  success_reward=10,
                                   episodes=1000,
                                   steps=300)
                 time.sleep(2)
