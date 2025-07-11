@@ -1,3 +1,8 @@
+--[[
+All the code in this file is from official clear.lua file and is written and provided by the developer!
+Only change here is to wrap print on line 68 in comments to prevent unnecessary outputs. 
+--]]
+
 function clearunits(restore_)
 	units = {}
 	tiledunits = {}
