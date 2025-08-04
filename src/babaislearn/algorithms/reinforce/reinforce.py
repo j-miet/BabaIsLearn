@@ -9,7 +9,6 @@ import time
 from pynput.keyboard import Key
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-from tensorboardX import SummaryWriter
 import torch
 from torch import optim
 from torch.distributions import Categorical
@@ -38,7 +37,6 @@ class Reinforce:
                 models_path: Path=Path(__file__).parent/'models',
                 policy_file: str='reinforce_policy.pt',
                 value_file: str='reinforce_value.pt',
-                summary_folder: str='runs'
             ) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("\n> Selected device:", self.device)
@@ -57,7 +55,6 @@ class Reinforce:
         self.models_path = models_path
         self.policy_file = policy_file
         self.value_file = value_file
-        self.summary_folder = summary_folder
 
         self._undo_penalty = 0 # penalty (= negative reward) after selecting 'undo' action
         self._input_delay = 0.02 # must be a small value, but not too small or pynput cannot register basic inputs
@@ -243,8 +240,6 @@ class Reinforce:
         self._game_status = 0
         self._win_counter = 0
 
-        writer = SummaryWriter(str(Path(__file__).parent/f"{self.summary_folder}"))
-
         if os.path.isfile(Path(__file__).parent/f"{self.policy_file}"):
             self.policy.load_state_dict(torch.load(self.models_path/f"{self.policy_file}", weights_only=True))
             print("Loaded existing policy model.")
@@ -326,8 +321,6 @@ class Reinforce:
                 f'Episode {e} -> reward: {score} | global step: {global_step} '
                 f'/// wins: {self._win_counter}, time total: {datetime.timedelta(seconds=int(time.time()-start_time))}'
             )
-            writer.add_scalar('Reward', score, e)
-            writer.add_scalar('Step', step, e)
             self._episode_loss = 0
             self.policy.actions.clear()
             
