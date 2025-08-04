@@ -1,15 +1,36 @@
 # BabaIsLearn
 
-Reinforcement learning applied to puzzle video game **Baba Is You** using PyTorch.
-- *Requires a copy of **Baba Is You***  
-- *Tested only on Windows operating systems*
+Reinforcement learning applied to puzzle video game **Baba Is You** using PyTorch.  
 
- Game's official modding api is used for getting output data, because programming a simulator for this game would be
-  quite a task, to put it lightly. For this reason, game must run at all times during training, and RL agent has to follow game's input 
-  speed limitations, allowing it to realistically perform around *10 actions per second*. This is unfortunately a very 
-  low number, making training quite slow.
+*Requires a copy of **Baba Is You** game*.
 
-**Current goal of this project is limited to implementing and testing some basic RL algorithms**. Making highly-intelligent agents for a game as complex as Baba Is You requires much more RL knowledge and is currently not possible.
+<u>Realistically</u>, this project only offers two applications:
+- an api to access game map states
+- implements a basic reinforce algorithm which can be used for learning purposes
+
+It unfortunately cannot offer a scalable platform for training and implementing a working AI because
+
+1. Game's official modding api is used for getting output data, because programming a simulator for this game would be
+  quite a task, to put it lightly. For this reason, game must run at all times during training, and RL agent has to 
+  follow game's input speed limitations, allowing it to realistically perform around *10 actions per second*. This is 
+  a very low number, making training slow.
+
+    Furthermore, current implementation of states is incomplete, as it can only display a single object per tile whereas
+     in-game, multiple objects can be stacked. This could be expanded quite easily, but state data size would become 
+     enormous; see the *Environment* section for more details.
+
+2. More importantly, implementing a reward function seems not possible. Currently, only a victory gives it a sensible 
+reward. This results into a policy where agent just runs around randomly until it wins, and only then it learns to 
+update policy. And because of how complex the game is, implementing any intermediate rewards becomes extremely 
+complicated. 
+
+    Only reasonable way I could think of would require a pre-trained network with supervised learning (data pairs of 
+    game state & player input), then use this pre-trained network as basis for policy network. Again, this would require
+     so much more processing power and speed + a proper api...
+
+TL;DR:
+1. complete environment (minus some minor bugs) can be accessed, but updating states is *very slow* 
+2. coming up with a reward function is an enormous task
 
 ## Environment
 
@@ -81,13 +102,12 @@ To verify level pack was installed correctly, run the game and select this map p
 ### Python
 
 For Python packages, [**PyTorch**](https://pytorch.org/get-started/locally/) is used for reinforcement learning stuff. 
-I currently run PyTorch in Python ``3.13``, but earlier versions should work fine.
+PyTorch has been tested on Python ``3.13``, but earlier versions should work fine.
 
 Other third-party packages required:
 
     matplotlib==3.10.3
     pynput==1.7.8
-    tensorboardX==2.6.4
 
 These versions can be adjusted based on your Python version. However, for ``pynput`` 1.7.8 is recommended; I've faced 
 some issues in the past with newer versions.
@@ -165,8 +185,11 @@ output gets desynced
 ``src\babaislearn\algorithms`` to adjust internal behavior.
 
 ### Bugs
-- sometimes input from ``pynput`` fails to register. This makes agent unable to get a new state, freezing the training process. Pressing any resumes training, but obviously requires human interraction.
-    - to reduce input errors, you can search for ``self._input_delay`` variable in reinforce.py and increase it's value to add time between inputs. Another variable ``self._input_delay2`` does the same, but for spacebar: it's used for skipping level transition screens where a longer pause is recommended.
+- sometimes input from ``pynput`` fails to register. This makes agent unable to get a new state, freezing the training 
+process. Pressing any resumes training, but obviously requires human interraction.
+    - to reduce input errors, you can search for ``self._input_delay`` variable in reinforce.py and increase it's value 
+    to add time between inputs. Another variable ``self._input_delay2`` does the same, but for spacebar: it's used for 
+    skipping level transition screens where a longer pause is recommended.
 
 ## Algorithms
 
@@ -174,16 +197,3 @@ output gets desynced
 
 Uses the standard loss function i.e. action log probability weighted rewards. By default, uses a baseline value network 
 to help approximate the value function which should improve policy learning.
-
-<u>Issues</u>
-- Agent lacks exploration. Because agent never wins quickly enough, it cannot learn that there is a bigger reward 
-waiting after a victory. This causes it to converge into repeating 1-2 actions. Thus it can only win on the first map 
-because of its simplicity (and can still fail if victory is not reached fast enough), but fails on  anything more 
-complex.
-    - in general, pure policy gradient methods are very inefficient for learning tasks that give you a reward
-    at the end without intermediary goals.
-
-
-### TODO:
-- DQN
-- PPO
