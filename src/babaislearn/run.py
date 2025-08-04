@@ -8,6 +8,26 @@ import utils
 # list of supported algorithms 
 from algorithms.reinforce.reinforce import Reinforce
 
+def _select_algorithm(user_input: str, babagame: BabaGame) -> None:
+    """Select algorithm based on input."""
+    match user_input:
+        case '1':
+            model = Reinforce(game=babagame,
+                              episodes=1000,
+                              steps=300)
+            time.sleep(2)
+            print(f"REINFORCE initialized, press '+' to begin.")
+            while not Hotkey.training_started:
+                time.sleep(0.01)
+            model.begin()
+        case 'exit':
+            return
+        case 'test':
+            utils.timer(2)
+            while True:
+                if babagame.get_state(debug_print=True)[1] in {-1, 2}:
+                    break
+
 def run() -> None:
     babagame = BabaGame()
     babagame.start_game()
@@ -23,23 +43,7 @@ def run() -> None:
         flush.start()
         input_str = input("=> ")
         babagame.set_autoflush(False)
-        match input_str:
-            case '1':
-                model = Reinforce(game=babagame,
-                                  episodes=1000,
-                                  steps=300)
-                time.sleep(2)
-                print(f"REINFORCE initialized, press '+' to begin.")
-                while not Hotkey.training_started:
-                    time.sleep(0.01)
-                model.begin()
-            case 'exit':
-                break
-            case 'test':
-                utils.timer(2)
-                while True:
-                    if babagame.get_state(debug_print=True)[1] in {-1, 2}:
-                        break
+        _select_algorithm(input_str, babagame)
 
 if __name__ == '__main__':
     run()
